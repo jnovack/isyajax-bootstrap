@@ -1,0 +1,94 @@
+body {
+	background-color: white;
+	color: black;
+}
+/*
+#main a:link {color: #B0D0EE}
+#main a:visited {color: #B0D0EE}
+#main a:hover {color: #AA54FF}
+#main a:active {color: #0000FF}
+*/
+#feedback {
+	height: 100px;
+}
+table {
+	border-width: 1px;
+	border-spacing: 1px;
+	border-style: groove;
+	border-collapse: separate;
+}
+table th {
+	border-width: 1px;
+	padding: 1px;
+	border-style: groove;
+}
+table td {
+	border-width: 1px;
+	padding: 1px;
+	border-style: groove;
+}
+.folder
+{
+	font-weight: bold;
+}
+.properties{
+	width:100%;
+	float: none;
+	display: inline-block;
+}
+.property {
+	float: left;
+	padding: 1px;
+	border-width: 1px;
+	border-style: groove;	
+	border-spacing: 1px;
+	border-collapse: separate;
+}
+.propertylabel {
+	font-weight: bold;
+	border-style: groove;
+	padding: 1px;
+	border-width: 1px;
+	border-spacing: 1px;
+	border-collapse: separate;
+}
+.properties .on {
+	border-style: groove;
+	padding: 1px;
+	border-width: 1px;	
+	border-spacing: 1px;
+	border-collapse: separate;
+}
+.properties .off {
+	border-style: groove;
+	padding: 1px;
+	border-width: 1px;	
+	border-spacing: 1px;
+	border-collapse: separate;
+}
+.commands {
+	float: none;
+}
+.on {
+	color: green;
+}
+.off {
+	color: red;
+}
+.na {
+	color: green;
+}
+.true {
+	color: green;
+}
+.false {
+	color: red;
+}
+.runningthen {
+    font-style:italic; 
+    color: teal;
+}
+.runningelse {
+    font-style:italic; 
+    color: purple;
+}

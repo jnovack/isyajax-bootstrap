@@ -1,0 +1,242 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<!--
+* ISY AJAX
+* http://sites.google.com/site/isyajax/
+* Copyright 2011, Nicholas Stein
+* Licensed under the MIT license: http://www.opensource.org/licenses/mit-license.php
+-->
+<html>
+
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+    <link rel="shortcut icon" href="/WEB/FAVICON.ICO"/>
+    <link rel="stylesheet" href="table.css">
+    <meta name="author" content="Nicholas Stein">
+    <title>My Lighting</title>
+    <script type="text/javascript" src="jquery.js"></script>
+    <script type="text/javascript" src="jtemp.js"></script>
+    <script type="text/javascript" src="jjson.js"></script>
+    <script type="text/javascript" src="jstorage.js"></script>
+    <script type="text/javascript" src="isyajax.js"></script>
+    <!--[if IE]><script language="javascript" type="text/javascript" src="excanvas.js"></script><![endif]-->
+    <script type="text/javascript" src="flot.js"></script>
+    <script type="text/javascript">
+        //******* Default Options ********
+        var nodeHideChar = "~";
+        $(document).ready(init);
+
+        function init(){
+            //look for page to display, after loading config
+            if ($.gup("display"))//looks for display in get information (?)
+            {
+                    var durl = $.gup("display").replace(/_/g,"/");
+                    display("/config/",'#navbar',false,"display('" + durl + "')");//Gets page to display from get information
+            }
+            else if (top.location.hash)//if not get information check for hash
+            {
+                var durl = top.location.hash.slice(1);
+                var durl = durl.replace(/_/g,"/");
+                display("/config/",'#navbar',false,"display('" + durl + "')");
+            }
+            else
+            {display("/config/", '#navbar', false, "display('/nodes/devices/');");}
+        }
+        jQuery.extend({   
+            gup: function(param){//Retrieves get information form URL 
+                var param = param.replace(/[[]/,"[").replace(/[]]/,"]");    
+                var regexS = "[?&]"+param+"=([^&#]*)";     
+                var regex = new RegExp(regexS);     
+                var results = regex.exec(window.location.href);     
+                if(results) {    
+                    return results[1];   
+                }  
+            }
+        });
+    </script>
+</head>
+
+<body>
+<h2 id='title'>My Lighting</h2>
+<div id='navbar'>
+	<font color="dark_blue" size="small" face="futura">
+		<a href="/admin">Administrative Console</a>
+		<br>
+		<!--<a href="/devices">Basic Interface</a>-->
+                <a href="/web/index.htm">Default Interface</a>
+	</font>
+</div>
+<div> <a id="feedback"></a></div>
+<div id="main"></div>
+
+<!-- Templates -->
+<textarea id="config" style="display:none">
+	<font color="dark_blue" size="small" face="futura">
+		<a href="#nodes/devices/" onclick="display('/nodes/devices/');return(false);">Devices</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+		<a href="#nodes/scenes/" onclick="display('/nodes/scenes/');return(false);">Scenes</a>&nbsp;&nbsp;|&nbsp;&nbsp;
+		<a href="#programs/" onclick="display('/programs/');return(false);">Programs</a>&nbsp;&nbsp;| &nbsp;
+		{#if $T.modules.climate.isInstalled}{*Wheather Module*}
+			<a class='nav' href="#climate" onclick="display('/climate/'); return false;">Weather Information</a>&nbsp;&nbsp;| &nbsp;
+		{#/if}
+		{#if $T.modules.eMeter.isInstalled}{*eMeter*}
+			<a class='nav' href="#emeter/status" onclick="display('/emeter/status'); return false;">Utility Meter</a>&nbsp;&nbsp;| &nbsp;
+		{#/if}
+		{#if $T.modules.networking.isInstalled}{*Networking*}
+			<a class='nav' href="#networking/resources/" onclick="display('/networking/resources/');  return false;">Networking Resources</a>&nbsp;&nbsp;| &nbsp;
+			<a class='nav' href="#networking/wol/" onclick="display('/networking/wol/'); return false;">Networking WOL</a>&nbsp;&nbsp;| &nbsp;
+		{#/if}
+		<a href="/admin">Administrative Console</a>
+		<br>
+		<!--<a href="/devices">Basic Interface</a>-->
+                <a href="/web/index.htm">Default Interface</a>
+                <a href="" onclick="$.jStorage.flush(); cache.html = []; alert('Cache Cleared'); return false;">Clear Cache</a>
+	</font>
+</textarea>
+<textarea id="nodes" style="display:none">
+	<a href="javascript:update('/status/');">Refresh status</a>
+	<table>
+	
+		<tr><th>Name</th><th>Status</th><th>Control</th></tr>
+		{#foreach $T.nodes as node}
+		{#if $T.node.name.charAt(0) != nodeHideChar}
+		<tr>
+			<td>
+				<a href="#nodes/{$T.node.address}" onclick="display('/nodes/{$T.node.address}');return false;">{$T.node.name}</a>
+			</td>
+			<td id="node{$T.node.id}ST" class="{$T.node.statusClass}">{$T.node.status}</td>
+			<td>
+				{#if $T.node.cat == 1 || $T.node.cat == 2 || $T.node.cat == 7 || !$T.node.cat}
+				<button onclick="getCmd('{$T.node.address}','DON');">ON</button> 
+				<button onclick="getCmd('{$T.node.address}','DOF');">OFF</button>
+				{#/if}
+			</td>
+		</tr>
+		{#/if}
+		{#/for}
+	</table>
+	<a href="javascript:update('/status/');">Refresh status</a>
+</textarea>
+<textarea id="programs" style="display:none">
+        {#if title($T.name)}
+	{#/if}
+	{#if $T.parentId}
+		<a href="#programs/{$T.parentId}/" onclick="display('/programs/{$T.parentId}/');return false;">Back</a>
+	{#/if}
+	<a href="" onclick="update('/programs/{$T.id}/');return false;">Refresh</a>
+	{#if $T.folder}
+		<table>
+			<tr><th>Name</th><th>Status</th><th>Last Run</th><th>Last Finish</th><th>Next Run Time</th><th>Control</th></tr>
+			{#foreach $T.programs as program}
+			<tr {#if $T.program.folder}class="folder"{#/if}>
+				<td>
+					<a href="#programs/{$T.program.id}/" onclick="display('/programs/{$T.program.id}/');return false;">{$T.program.name}</a>
+				</td>
+				<td id="program{$T.program.id}ST" class="{$T.program.statusClass}">{$T.program.status}</td>
+				{#if !$T.program.folder}
+					<td id="program{$T.program.id}PRGLR">{$T.program.lastRun}</td>			
+					<td id="program{$T.program.id}PRGLF">{$T.program.lastFinish}</td>
+					<td id="program{$T.program.id}PRGNR">{$T.program.nextRun}</td>
+					<td>
+						<button onclick="display('/programs/{$T.program.id}/runThen/');">Run Then</button> 
+						<button onclick="display('/programs/{$T.program.id}/runElse/');">Run Else</button> 
+					</td>
+				{#/if}
+			</tr>
+			{#/for}
+		</table>
+		<a href="" onclick="update('/programs/{$T.id}/');return false;">Refresh</a>		
+	{#else}
+		{#foreach $T.properties as property}
+			<br><a>{$T.property.label}</a> : <a id="program{$T.id}{$T.property.id}" class="{$T.property.pclass}">{$T.property.formatted}</a>
+		{#/for}
+		<br>
+		<button onclick="display('/programs/{$T.id}/runIf/');">Run If</button> 
+		<button onclick="display('/programs/{$T.id}/runThen/');">Run Then</button> 
+		<button onclick="display('/programs/{$T.id}/runElse/');">Run Else</button> 
+		<button onclick="display('/programs/{$T.id}/stop/');">Stop</button> 
+		<br>
+		<button onclick="display('/programs/{$T.id}/enable/');">Enable</button> 
+		<button onclick="display('/programs/{$T.id}/disable/');">Disable</button> 
+		<br>
+		<button onclick="display('/programs/{$T.id}/enableRunAtStartup/');">Run At Startup</button> 
+		<button onclick="display('/programs/{$T.id}/disableRunAtStartup/');">Do Not Run at Startup</button> 
+	{#/if}
+</textarea>
+<textarea id="node" style="display:none">
+	<div class="properties">
+	{#param name=id value=$T.id}
+		{#foreach $T.properties as property}
+		<div class="property node{$T.id}{$T.property.id}">
+			<div class="propertylabel"> {$T.property.label} </div>
+			<div id="node{$T.id}{$T.property.id}" class="{$T.property.pclass}">{$T.property.formatted}</div>
+		</div>
+		{#/for}
+	</div>
+	<div class="commands">
+	{#foreach $T.controls as control}
+		{#if controls[$T.control].actions[0]}
+			<select class="node{$T.id}{$T.control}" onchange="getCmd('{$T.address}', '{controls[$T.control].name}/' + this.value);">
+			<option value="null">{controls[$T.control].label}</option>
+			{#foreach controls[$T.control].actions as action}
+				<option value="{$T.action.name}">{$T.action.label}</option>
+			{#/for}
+			</select>
+		{#else}
+		<button class="node{$T.id}{$T.control}" onclick="getCmd('{$T.address}','{controls[$T.control].name}');">{controls[$T.control].label}</button> 
+		{#/if}
+	{#/for}
+		{#if $T.cat == 1}{* node is Dimmer *}
+		{*
+			<button onmousedown="getCmd('{$T.address}','BMAN');" onmouseup="getCmd('{$T.address}','SMAN');">Dim</button> 
+			<button onmousedown="getCmd('{$T.address}','BMAN/1');" onmouseup="getCmd('{$T.address}','SMAN');">Bright</button> 
+		*}
+	</div>
+	{#if $T.cat}{* node is not a Scene*}
+		<a href="javascript:update('/nodes/{$T.address}');">Refresh</a>
+	{#/if}
+</textarea>
+<textarea id="climate" style="display:none">
+	<a href="javascript:update('/climate/');">Refresh</a>
+	<ul class="properties">
+	{#param name=id value=$T.id}
+		{#foreach $T.properties as property}
+		<li>
+			{$T.property.label}:
+			<span id="node{$T.id}{$T.property.id}" class="true">{$T.property.formatted}</span>
+		</li>
+		{#/for}
+	</ul>
+	<a href="{$T.rss}" class="WeatherBug">Courtesy of WeatherBug™</a>
+</textarea>
+<textarea id="eMeter" style="display:none">
+	<a href="javascript:update('/emeter/status/');">Refresh</a>
+	<ul>
+	{#param name=id value=$T.id}
+		{#foreach $T.properties as property}
+		<li>
+			{$T.property.label}:
+			<span id="node{$T.id}{$T.property.id}" class="true">{$T.property.formatted}</span>
+		</li>
+		{#/for}
+	</ul>
+</textarea>
+<textarea id="netConfig" style="display:none">
+	<table>
+	<tr><th>Name</th><th>Control</th></tr>
+	{#foreach $T as rule}
+		<tr>
+			<td>
+				{$T.rule.name}
+			</td>
+			<td>
+				{#if $T.rule.mac}{* mac means it is WOL else it is a resource *}
+					<button onclick="display('/networking/wol/{$T.rule.id}/');">Wake</button>					
+				{#else}
+					<button onclick="display('/networking/resources/{$T.rule.id}/');">Run</button>
+				{#/if}
+			</td>
+		</tr>			
+	{#/for}
+	</table>
+</textarea>
+</body>
+</html>

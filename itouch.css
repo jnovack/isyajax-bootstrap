@@ -1,0 +1,417 @@
+body { 
+    margin: 0px; 
+    padding:0px; 
+    /*font-family: arial,verdana; */
+    font-family: Helvetica;
+    text-decoration: none; 
+    color: black; 
+    background-color: #C5CCD4;
+    width:100%;
+    max-width: 480px;
+    min-width: 320px;
+}
+#titlebar{
+    background: #7D91AC;
+    padding-bottom: 10px;
+    padding-top: 10px;
+    text-align: center;
+    color: white;
+    font-weight: bold;
+}
+.feedbar{
+    width: 100%;
+    background-color: #EFEFFF;
+    display: inline-block;
+    border-bottom: 1px solid #ccc;
+    min-height: 24pt;
+    vertical-align: middle;
+    text-align: center;
+}
+.panel{
+    width: 100%;
+    border-bottom: 1px solid #ccc;
+    display: inline-block;
+}
+.panelP{
+    width: 100%;
+    background: white;
+    display: inline-block;
+    padding-bottom: 0px;
+}
+.charts {
+    background: white;
+    text-align: center;
+}
+.chart{
+    width: 100%;
+    height: 200px;
+    margin: auto;
+}
+.feedbar .back_holder{
+    float: left;
+}
+.feedbar .refresh_holder{
+    float: right;
+}
+.feedbar .feedback {
+    color: #2B3455;
+    min-height: 37px;
+    font-size: 12px;
+}
+#nav {
+    width: 100%;
+    float: none;
+    text-align: center;
+}
+#nav .plain :link{
+    color: blue;
+}
+#nav .plain :visited{
+    color: blue;
+}
+#nav .plain :hover{
+    color: black;
+}
+#nav .panel .nav:link{}
+#nav .panel .nav:visited{}
+#nav .panel .nav:hover{
+    background-color: #EFEFFF;
+}
+.nav {
+    background-color:white;
+    float: none;
+    width: 100%;
+    padding: 0px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    text-decoration: none;
+    font-weight: bold;
+    font-size: large;
+    vertical-align: middle;	
+    border: none;
+    border-bottom: 1px solid #ccc;
+    color: black;
+    display: inline-block; 	
+}
+.half {
+    float: left;
+    width: 50%;
+}
+.nodelist .node a{
+    text-decoration: none;
+    color: black;
+}
+.programlist a{
+    text-decoration: none;
+    color: black;
+}
+a.WeatherBug{
+    color: gray;
+    text-decoration: none;
+}
+.plain {
+    font-weight: normal;
+    font-size: small;
+}
+.left {
+    float: left;
+    text-align: left;
+    padding-left: 10px;
+    padding-right: 10px;
+}
+.right {
+    float: right;
+    text-align: right;
+    padding-right: 10px;
+    padding-left: 10px;
+}
+.third{
+    width:33%;
+    min-height: 10px;
+}
+div {
+    font-size: large;
+    text-decoration: none;
+    padding-top: 3px;
+    padding-bottom: 3px;
+}
+#main{
+    width: 100%;
+    padding-bottom: 0px;
+    padding-top: 0px;
+}
+.node{
+    width:100%;
+    background: white;
+    border-bottom: 1px solid #ccc;
+    float: left;
+}
+.nodelist .node{
+    max-width: 480px;
+    min-width: 320px;
+}
+.node .line1{
+    width:100%;
+    text-align: center;
+    vertical-align: middle;
+} 
+.header{
+    width:100%;
+    text-align: center;
+    vertical-align: middle;
+    background: white;
+} 
+.node .line1 button{
+    margin-left: 5px;
+}
+.folder {
+    width:100%;
+    background: white;
+    border-bottom: 1px solid #ccc;
+}
+.programlist .folder {
+    max-width: 480px;
+    min-width: 320px;
+    float: left;
+}
+.programlist .program {
+    max-width: 480px;
+    min-width: 320px;
+    float: left;
+}
+.program {
+    width:100%;
+    background: white;
+    border-bottom: 1px solid #ccc;
+}
+.program .line1{
+    width:100%;
+    text-align: center;
+}
+.folder .line1{
+    width:100%;
+    text-align: center;
+    font-weight: bold;
+}
+.properties{
+    width:100%;
+    float: none;
+    display: inline-block;
+}
+.property {
+    padding-bottom: 2px;
+    padding-top: 2px;
+    border-bottom: 1px solid #ccc;
+    background: white;
+}
+.nodelist .properties {
+    font-size: medium;
+}
+.nodelist .ST {
+    font-size: large;
+}
+.nodelist .propertylabelshort {
+    font-size: small;
+}
+.node .CLISPH{
+    color: red;
+}
+.node .CLISPC{
+    color: blue;
+}
+.node .CLIMD.cool{
+    color: blue;
+}
+.node .CLIMD.heat{
+    color: red;
+}
+.commands{
+    width: 100%;
+    text-align: center;
+}
+.nodelist {
+    padding-top: 0px;
+    padding-bottom: 0px;
+    background: white;
+    display: inline-block;
+    width: 100%
+}
+.programlist {
+    padding-top: 0px;
+    padding-bottom: 0px;
+}
+#elk {
+    background: white;
+    padding-bottom: 0px;
+}
+#elk .nav{
+    text-align: center;
+}
+#elk .nav:link{}
+#elk .nav:visited{}
+#elk .nav:hover{
+    background-color: #EFEFFF;
+}
+#elk .name {
+    color: black;
+    text-decoration: none;
+}
+#elk .title {
+    text-align: center;
+}
+#elk span.properties {
+    width: auto;
+}
+#elk span.properties.expanded {
+    width: 100%;
+}
+#elk .properties .property{
+    border-bottom: 0px;
+}
+#elk .properties.expanded .property{
+    border-bottom: 1px solid #ccc;
+    width: 100%;
+    display: block;
+    text-align: left;
+}
+#elk .tstat.off {
+    color: black;
+}
+#elk .normal{
+    color: green;
+}
+#elk .warning{
+    color: red;
+}
+#elk select{
+    vertical-align: middle;
+}
+#elk #DisconnectedError{
+    text-align: center;
+    display: none;
+}
+#elk.Disconnected #DisconnectedError{
+    display: block;
+    color: red;
+}
+#elk #DisabledError{
+    text-align: center;
+    display: none;
+}
+#elk.Disabled #DisabledError{
+    display: block;
+    color: red;
+}
+#elk .error{
+    text-align: center;
+}
+#elk .ThermostatModeState{
+    font-size: medium;
+}
+#elk .properties.expanded .ThermostatModeState{
+    font-size: large;
+}
+#elk .ThermostatModeState.auto{
+    color: green;
+}
+#elk .ThermostatModeState.heat{
+    color: red;
+}
+#elk .ThermostatModeState.cool{
+    color: blue;
+}
+#elk .ThermostatTempState{
+    font-size: large;
+}
+#elk .ThermostatHeatSetPoint{
+    color: red;
+}
+#elk .ThermostatHeatSetPoint .label{
+    color: black;
+}
+#elk .ThermostatCoolSetPoint{
+    color: blue;
+}
+#elk .ThermostatCoolSetPoint .label{
+    color: black;
+}
+#elk .tstat.off .ThermostatHeatSetPoint{
+    display: none;
+}
+#elk .tstat.off .ThermostatCoolSetPoint{
+    display: none;
+}
+#elk .tstat.cool .ThermostatHeatSetPoint{
+    display: none;
+}
+#elk .tstat.heat .ThermostatCoolSetPoint{
+    display: none;
+}
+#elk .tstat .autoLabel{
+    display: none;
+}
+#elk .tstat.auto .autoLabel{
+    display: inline-block;
+    font-size: small;
+}
+#elk .tstat.auto .properties.expanded .autoLabel{
+    display: none;
+}
+#elk .ThermostatHoldState.false{
+    color: green;
+}
+#elk .ThermostatFanState.false{
+    color: green;
+}
+.nodelist .commands {
+    float: none;
+    text-align: center;
+}
+button {
+    height : 35px;
+    min-height: 35px;
+}
+input{
+    height : 35px;
+    min-height: 35px;
+}
+.commands input{
+    width: 40%;
+    max-width:192px;
+}
+.commands button {
+    width: 40%;
+    max-width:192px;
+}
+.commands select {
+    width: 40%;
+    height: 35px;
+    max-width:192px;
+    vertical-align: middle;
+}
+.on {
+    color: green;
+}
+.na {
+    color: green;
+}
+.true {
+    color: green;
+}
+.off {
+    color: red;
+}
+.false {
+    color: red;
+}
+.runningthen {
+    font-style:italic; 
+    color: teal;
+}
+.runningelse {
+    font-style:italic; 
+    color: purple;
+}
+.hidden {
+    display:none;
+}

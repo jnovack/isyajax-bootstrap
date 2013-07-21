@@ -1,0 +1,1210 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<!--
+* ISY AJAX
+* http://sites.google.com/site/isyajax/
+* Copyright 2011, Nicholas Stein
+* Licensed under the MIT license: http://www.opensource.org/licenses/mit-license.php
+-->
+<html>
+<head>
+	<meta http-equiv="content-type" content="text/html; charset=UTF-8">
+	
+	<!--<meta name="viewport" content="width=320; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;">-->
+        <meta name="viewport" content="width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;">
+	<meta name="apple-touch-fullscreen" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta http-equiv="X-UA-Compatible" content="IE=9" >
+	<meta name="author" content="Nicholas Stein">
+	<link rel="shortcut icon" href="/WEB/FAVICON.ICO"/>
+	<link rel="stylesheet" href="itouch.css">
+	<title>My Lighting</title>
+	<script type="text/javascript" src="jquery.js"></script>
+	<script type="text/javascript" src="jtemp.js"></script>
+	<script type="text/javascript" src="cookie.js"></script>
+        <script type="text/javascript" src="jjson.js"></script>
+        <script type="text/javascript" src="jstorage.js"></script>
+        <script type="text/javascript" src="hashch.js"></script>
+	<script type="text/javascript" src="isyajax.js"></script>
+  	<!--[if IE]><script language="javascript" type="text/javascript" src="excanvas.js"></script><![endif]-->
+  	<script type="text/javascript" src="flot.js"></script>
+	<script type="text/javascript">
+            //******* Default Options ********
+            var showSubDevices = true;
+            var showControllers = false;
+            var showDisabled = false;
+            var showElk = false;//shows the elk menu even if the elk module is not installed
+            var bodyWidth = false;
+            var nodeHideChar = "~";
+            var cacheLocal = false;
+
+
+            $(document).ready(init);
+
+            function init(){
+                //look for page to display, after loading config
+                if ($.gup("display"))//looks for display in get information (?)
+                {
+                    var durl = $.gup("display").replace(/_/g,"/");
+                    display2("/config/",false,false,"display('" + durl + "')");//Gets page to display from get information
+                }
+                else if (location.hash)//if we have hash information
+                {
+                    //load config then trigger hash check
+                    uHash = true;//enable updating of hash for history
+                    display2("/config/",false,false,"$(window).hashchange();");
+                }
+                else
+                {
+                    //enable updating of hash then load config;
+                    uHash = true; display2("/config/");
+                }
+
+                if ($.cookie('showSubDevices')){showSubDevices = bool($.cookie('showSubDevices'));}
+                if ($.cookie('showControllers')){showControllers = bool($.cookie('showControllers'));}
+                if ($.cookie('showDisabled')){showDisabled = bool($.cookie('showDisabled'));}
+                if ($.cookie('showElk')){showElk = bool($.cookie('showElk'));}
+                if ($.cookie('cacheLocal')){cacheLocal = bool($.cookie('cacheLocal'));}
+                if ($.cookie('bodyWidth')){bodyWidth = $.cookie('bodyWidth')}
+                if (bodyWidth){$("body").css("max-width",bodyWidth);}
+                setInterval('update();',30000);//Calls update time in millseconds 30000 = 30 seconds
+                
+                //Lets us know when the hash changes
+                $(window).hashchange( function(){
+                    //Updates display for external hash change
+                    if (location.hash.slice(1) != hash)//check to see if hash is different than we expect
+                    {
+                        var url = location.hash.slice(1);
+                        if (url.indexOf("&") > 0)
+                        {
+                            url = url.substring(0,url.indexOf("&"));
+                            var template = $.hup("tmpl");   
+                        }
+                        var fid = $.hup("folder");
+                        var elkId = $.hup("elk");
+                        if (elkId)//if we have an elkId load elk to a specific area ect
+                        {
+                            if ($('.elk').size())//if we have elk, call elk function to hide/show 
+                            {
+                                //console.log("elk already there, updating", elkId, '.elk .' + elkId);
+                                elk(elkId);
+                            }
+                            else//if not display elk first
+                            {
+                                //console.log("elk not there, loading", elkId, '.elk .' + elkId);
+                                display2('/elk/get/topology/',false,false,'elk(\'' + elkId + '\');');
+                            }
+                        }
+                        else if (url.indexOf("/elk/get/topology") >=0 && $('.elk').size())//elk is requested but should allready be there
+                        {
+                            elk("");//just update elk view to defualt
+                        }
+                        else if (fid)//if we have an fid from folder we are loading nodes to a certain folder
+                        {
+                            if ($('.p' + fid).size())//if we have parents, just update folder view
+                            {
+                                folder(fid);
+                            }
+                            else //no parent, node list probably hasen't been loaded
+                            {
+                                display2('/nodes/',false,false,'folder(\'' + fid + '\');');
+                            }
+                        }
+                        else if(url == "/nodes/" && $('.p').size())//nodes is request for root folder but should allready be there
+                        {
+                            folder("");//just update folder view to display root folder
+                        }
+                        else//not a folder 
+                        {
+                            url = url.replace(/_/g,"/");//convert "_"'s to "/"'s for compatibility with older methods
+                            //if we are loading a device make sure node list is loaded first so we can display children(if any)
+                            //if we are using the nodes template, loading a devices (devices have spaces), and node list is empty
+                            if(template == "nodes" && (url.search(" ")> 0 || url.search("%20") > 0) && nodes.length == 0)
+                            {
+                                //load nodes list then the specific node, so we can display children if there is any
+                                //alert("loading node list first");
+                                display2("/nodes/",false,false,"display2('" + url + "', false, '" + template + "')");
+                            }
+                            else//don't need to load nodes first, and not a folder
+                            {
+                                //update display using url (from hash before &) and template (tmpl= from hash) 
+                                display2(url, false, template);
+                            }
+                            
+                        }
+                    }
+                });
+            }
+            jQuery.extend({   
+                gup: function(param){//Retrieves get information form URL 
+                    var param = param.replace(/[[]/,"[").replace(/[]]/,"]");    
+                    var regexS = "[?&]"+param+"=([^&#]*)";     
+                    var regex = new RegExp(regexS);     
+                    var results = regex.exec(window.location.href);     
+                    if(results) {    
+                        return results[1];   
+                    }  
+                }
+            });
+            jQuery.extend({   
+                hup: function(param){//Retrieves get information form URL 
+                    var param = param.replace(/[[]/,"[").replace(/[]]/,"]");    
+                    var regexS = "[#&]"+param+"=([^&#]*)";     
+                    var regex = new RegExp(regexS);     
+                    var results = regex.exec(window.location.hash);     
+                    if(results) {    
+                        return results[1];   
+                    }  
+                }
+            });
+            function folder(id,name)//Turns node list into room
+            {
+                $('.node').hide();//hide all nodes
+                $('.p' + id).show();//show children nodes(nodes with this id as parent)
+                if (id && id != "")//if we have an id set the back button to go to it
+                {   
+                    if (nodes[id].parent)//this node has a parent set back button to go to it else have it go to "", or root devices without parent
+                    {
+                        $('.back_holder').html('<input type="button" onclick="folder(\'' + nodes[id].parentId + '\');" value="Back">');
+                    }
+                    else
+                    {
+                        $('.back_holder').html('<input type="button" onclick="folder(\'\');" value="Back">');
+                        //$('.back_holder').html('<input type="button" onclick="display(\'/nodes/\');" value="Back">');
+                    }
+                    if (name)
+                    {
+                        title(name);
+                    }
+                    else if (nodes[id])
+                    {
+                        title(nodes[id].name);
+                    }
+                    //update hash
+                    hash = "/nodes/" + "&tmpl=nodes&folder=" + id;
+                }
+                else//no id, going to root dir (Devices & Scenes)
+                {
+                    //set back to go to menu
+                    $('.back_holder').html('<input type="button" onclick="display(\'config\');" value="Back">');
+                    title("Devices & Scenes");//update title
+                    //update hash
+                    hash = "/nodes/";
+                }
+                
+                //finish updating hash if different
+                if (uHash && location.hash.slice(1) != hash)
+                {
+                    //location.hash = "#" + hash;
+                    location.href = "#" + hash;   
+                }
+            }
+            function elk(id)//Turns node list into room
+            {
+                $('.node').hide();//hide all nodes            
+                //console.log("indexOf ae",id.indexOf("ae"));
+                if (id == "")//if blank show all areas, and elk menu set back to menu (config)
+                {
+                    $('.back_holder').html('<input type="button" onclick="display(\'/config/\');" value="Back">');
+                    title("ELK");
+                    $(".area .advanced").hide();//hide advanced information for an area
+                    $(".area .basic").show();//make sure name and basic information is visible for all areas
+                    $(".area").show();// show all areas
+                    $(".area .properties").removeClass("expanded");
+                    $(".menu").show();// show all menus
+                    //update hash
+                    hash = "/elk/get/topology";
+                }
+                else {
+                    $("." + id).show();//show children nodes(nodes with this as class)
+                    //update hash
+                    hash = "/elk/get/topology" + "&elk=" + id;
+                    if (id.indexOf("kp") >= 0)//we are showing a keypad 
+                    {//keypad id shoud be a combined id of areaid.keypadid
+                        var areaId = id.substr(0, id.indexOf("."));//get the first half for areaId
+                        var keypadId = id.substr(id.indexOf(".")+1,id.length);//get the second half for keypadId
+                        $('.back_holder').html('<input type="button" onclick="elk(\'' + areaId + '\');" value="Back">' );//set back to show area
+                        $(".keypad." + id + " .advanced").show();//show advanced controls for this keypad
+                        $(".keypad." + id + " .basic").hide();//hide name for this keypad as it is shown in title above
+                        $(".keypad." + id + " .properties").addClass("expanded");
+                        if ($("#" + keypadId + "Name").size())//update title div and browser title bar
+                        {
+                           title($("#" + keypadId + "Name").html());
+                        }
+                    }
+                    else if (id.indexOf("ae") >= 0)//if we are showing an area 
+                    {
+                        $('.back_holder').html('<input type="button" onclick="elk(\'\');" value="Back">');//set back to show root elk
+                        $(".area." + id + " .advanced").show();//show advanced controls for this area
+                        $(".area." + id + " .basic").hide();//hide name as it is shown in title above
+                        $(".keypad .advanced").hide();//hide advanced section for all keypads
+                        $(".keypad .basic").show();//make sure basic information for keypads is visible
+                        $(".area." + id + " .properties").addClass("expanded");
+                        $(".keypad." + id + " .properties").removeClass("expanded");
+                        if ($("#" + id + "Name").size())//update title div and browser title bar
+                        {
+                           title($("#" + id + "Name").html());
+                        }
+                    }
+                    else if (id.indexOf("output") >= 0)//showing outputs
+                    {
+                        $('.back_holder').html('<input type="button" onclick="elk(\'\');" value="Back">');//set back to show root elk                
+                       title("ELK Outputs");//update title div and browser title bar 
+                    }
+                    else if (id.indexOf("tstat") >= 0)//showing all thermostats basic view
+                    {
+                        $('.back_holder').html('<input type="button" onclick="elk(\'\');" value="Back">');//set back to show root elk                
+                       title("ELK Thermostats");//update title div and browser title bar 
+                       $(".tstat .advanced").hide();//hide advanced section for all thermostats
+                       $(".tstat .basic").show();//make sure basic information for thermostats is visible
+                       $(".tstat .properties").removeClass("expanded");
+                    }
+                    else if (id.indexOf("te") >= 0)//showing a thermostat in detail
+                    {
+                        $('.back_holder').html('<input type="button" onclick="elk(\'tstat\');" value="Back">');//set back to show all thermostats                
+                       $(".tstat." + id + " .basic").hide();//hide basic information and name for this thermostat
+                       $(".tstat." + id + " .advanced").show();//show advanced section for this thermostat
+                       $(".tstat." + id + " .properties").addClass("expanded");
+                       if ($("#" + id + "Name").size())//update title div and browser title bar
+                       {
+                           title($("#" + id + "Name").html());
+                       }
+                    }
+                }
+                //finish updating hash if different
+                if (uHash && location.hash.slice(1) != hash)
+                {
+                    //location.hash = "#" + hash;
+                    location.href = "#" + hash;   
+                }
+
+            }
+            function elkKpText(aeId){
+                var eText = $("#ae" + aeId + "Text").val();
+                var beep = $("#ae" + aeId + "Beep").val();
+                var seconds = $("#ae" + aeId + "Seconds").val();
+                if (seconds == "null")//only include seconds if not null
+                {
+                    update("/elk/area/" + aeId + "/cmd/display?text=" + eText + "&beep=" + beep);
+                }
+                else
+                {
+                    update("/elk/area/" + aeId + "/cmd/display?text=" + eText + "&beep=" + beep + "&offTimerSeconds=" + seconds);
+                }
+            }
+            function setBack(url, id)
+            {
+                if (url == '/nodes/' || url == '/nodes')
+                {
+                    //alert("setback(" + url + "," + id + ")");
+                    if (id)
+                    {
+                        var code = "folder(\\'" + id + "\\');";
+                        $('.back_holder').html('<input type="button" onclick="display2(\'' + url + '\',false,false,\'' + code + '\');" value="Back">');
+                    }
+                    else
+                    {
+                        $('.back_holder').html('<input type="button" onclick="display(\'' + url + '\');" value="Back">');
+                    }
+                }
+            }
+	</script>
+</head>
+
+<body>
+    <div id='titlebar'><a id='title'>My Lighting</a></div>
+    <div id="main">
+        <div class="feedbar">
+            <span id="feedback" class="feedback"></span>
+        </div>
+        <div id='nav'>
+            <div class='nav plain'>
+                <a href="/web/index.htm" class='left third'>Default Interface</a>
+                <a href="/admin/" class='right third'>Admin Console</a>
+                <a href="" onclick="$('#menuadv').toggleClass('hidden');return false" class="third">Advanced</a>
+            </div>
+            <div class='panel'>
+                <a class='nav' href="javascript:display('/config/');">Load Config</a>
+            </div>
+            <!--Either replace "logo.jpg" with your image, or change it below, use "/web/udlogo.jpg" for Universal devices logo, edit/remove width if desired
+			****This needs to be changed bellow also-->
+            <div class='panel' style="background:white">
+                <img src="logo.jpg" style="max-width:240px;" alt="">
+            </div>
+        </div>
+    </div>
+
+    <!-- Templates -->
+    <textarea id="config" style="display:none">
+        <div class="feedbar">
+            <span id="feedback" class="feedback"></span>
+        </div>
+        <div id='nav'>
+            <div class='nav plain'>
+                <a href="/web/index.htm" class='left third'>Default Interface</a>
+                {#if navigator.javaEnabled()}
+                    <a href="/admin/" class='right third'>Admin Console</a>
+                {#else}{* if java is not installed do not display a link to the admin conole but a blank space to keep the spot blank*}
+                    <span class="right third"> </span>
+                {#/if}
+                
+                
+                <a href="" onclick="$('#menuadv').toggleClass('hidden');return false" class="third">Advanced</a>
+            </div>
+            <div class='panel hidden' id='menuadv'>
+                <a class='nav' href="" onclick="$.jStorage.flush(); cache.html = []; alert('Cache Cleared'); return false;">Clear Cache</a>
+                {#if $T.modules.networking.isInstalled}{*Networking*}
+                    {*
+                    <a class='nav' href="#networking_resources" onclick="display('/networking/resources/'); return false;">Networking Resources</a>
+                    <a class='nav' href="#networking_wol" onclick="display('/networking/wol/'); return false;">Networking WOL</a>
+                    *}
+                    <a class='nav' href="#/config/&tmpl=netPanel" onclick="display('/config/',false,'netPanel'); return false;">Networking</a>
+                {#/if}
+                <a class='nav' href="#/config/&tmpl=varsPanel" onclick="display('/config/',false,'varsPanel'); return false;">Variables</a>
+                {#if navigator.javaEnabled()}
+                    <a class='nav half' href="/admin.jnlp">Install Web App (Local)</a>
+                    <a class='nav half' href="http://www.universal-devices.com/99i/{$T.app_version}/admin.jnlp">Install Web App (Internet)</a>
+                {#/if}
+                <a class='nav' href="#/config/&tmpl=options" onclick="display('/config/',false,'options'); return false;">Options</a>
+                <a class='nav' href="#/config/&tmpl=about" onclick="display('/config/',false,'about'); return false;">About</a>
+            </div>
+            <div class='panel'>
+                <a class='nav' href="#nodes" onclick="display('/nodes/');return false;">My Devices & Scenes</a>
+                <a class='nav' href="#nodes_devices" onclick="display('/nodes/devices/');return false;">My Devices</a>
+                <a class='nav' href="#nodes_scenes" onclick="display('/nodes/scenes/'); return false;">My Scenes</a>
+                {#if $T.modules.eMeter.isInstalled || $T.modules.eMeterSEP.isInstalled}{*eMeter*}
+                        <a class='nav' href="#emeter" onclick="display('/emeter/'); return false;">My Energy</a>
+                {#/if}
+                {#if $T.modules.climate.isInstalled}{*Wheather Module*}
+                        <a class='nav' href="#climate" onclick="display('/climate/'); return false;">My Weather</a>
+                {#/if}
+                <a class='nav' href="#programs" onclick="display('/programs/'); return false;">My Programs</a>
+                {#if $T.modules.elk.isInstalled || showElk == true}
+                    <a class='nav' href="#elk/get/topology" onclick="display('/elk/get/topology'); return false;">Elk</a>
+                {#/if}	
+            </div>
+            <!--Either replace "logo.jpg" with your image, or change it below, use "/web/udlogo.jpg" for Universal devices logo, edit/remove width if desired
+            ****This needs to be changed above also-->
+            <div class='panel' style="background:white">
+                    <img src="logo.jpg" style="max-width:240px;" alt="">
+            </div>
+        </div>
+    </textarea>
+    <textarea id="options" style="display:none">
+        {#if title('Options')}{#/if}
+        <div class="feedbar">
+            <div  class="back_holder"><input type='button' onclick="cache.html = [];display('/config/');" value='Back'></div>
+            <span id="feedback" class="feedback"></span>
+        </div>
+        <span class="options">
+            <div class='property'>
+                SubDevices : <select onchange="$.cookie('showSubDevices',this.value);showSubDevices=bool(this.value);">
+                    <option value="true" {#if showSubDevices}SELECTED{#/if}>Show</option>
+                    <option value="false" {#if !showSubDevices}SELECTED{#/if}>Hide</option>
+                </select>
+            </div>
+            <div class='property'>
+                Controllers : <select onchange="$.cookie('showControllers',this.value);showControllers=bool(this.value);">
+                    <option value="true" {#if showControllers}selected{#/if}>Show</option>
+                    <option value="false" {#if !showControllers}selected{#/if}>Hide</option>
+                </select>
+            </div>
+            <div class='property'>
+                Disabled : <select onchange="$.cookie('showDisabled',this.value);showDisabled=bool(this.value);">
+                    <option value="true" {#if showDisabled}selected{#/if}>Show</option>
+                    <option value="false" {#if !showDisabled}selected{#/if}>Hide</option>
+                </select>
+            </div>
+            <div class='property'>
+                Max Width : <select onchange="$.cookie('bodyWidth',this.value);bodyWidth=this.value;$('body').css('max-width',bodyWidth);">
+                    <option value="480px" {#if bodyWidth=="480px"}selected{#/if}>1 Column</option>
+                    <option value="960px" {#if bodyWidth=="960px"}selected{#/if}>2 Columns</option>
+                    <option value="1440px" {#if bodyWidth=="1440px"}selected{#/if}>3 Columns</option>
+                    <option value="100%" {#if bodyWidth=="100%"}selected{#/if}>Fill Page</option>
+                </select>
+            </div>
+            <div class='property'>
+                Local Caching : <select onchange="$.cookie('cacheLocal',this.value);cacheLocal=bool(this.value);">
+                    <option value="true" {#if cacheLocal}selected{#/if}>Enable</option>
+                    <option value="false" {#if !cacheLocal}selected{#/if}>Disable</option>
+                </select>
+            </div>
+            {#if !$T.modules.elk.isInstalled}{* if the elk module is not install give the option to show it anyways *}
+                <div class='property'>
+                    ELK : <select onchange="$.cookie('showElk',this.value);showElk=bool(this.value);">
+                        <option value="true" {#if showElk}selected{#/if}>Show</option>
+                        <option value="false" {#if !showElk}selected{#/if}>Hide</option>
+                    </select>
+                </div>
+            {#/if}
+        </span>
+        <div class="feedbar">
+            <!--
+            <div  class="back_holder"><input type='button' onclick="cache.html = [];display('/config/');" value='Back'></div>
+            <span id="feedback" class="feedback"></span>-->
+        </div>
+    </textarea>
+    <textarea id="about" style="display:none">
+        {#if title('About')}{#/if}
+        <div class="feedbar">
+            <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+            <div class="refresh_holder"><button onclick="update();">Refresh</button></div>
+            <span id="feedback" class="feedback"></span>
+        </div>
+            <div class='header'>ISY Firmware</div>
+            <div class='property'>Model : <span class='on'>{$T.product.desc}</span></div>
+            <div class='property'>Platform : <span class='on'>{$T.platform}</span></div>
+            <div class='property'>Version : <span class='on'>{$T.app_version}</span></div>
+            <div class='property'>Build Timestamp : <span class='on'>{$T.build_timestamp}</span></div>
+            <div class='header'>Time</div>
+            <span id="timePanel">
+                <a class='nav' href="#time" onclick="display('/time/','#timePanel'); return false;">Loading time ...</a>
+                <input type="hidden" class="load" value="/time/">
+            </span>
+        <div class="feedbar">
+            <div class="back_holder"><button onclick="display('/config/');">Back</button></div>
+            <div class="refresh_holder"><button onclick="update();">Refresh</button></div>
+            <span id="feedback" class="feedback"></span>
+        </div>
+    </textarea>
+    <textarea id="netPanel" style="display:none">
+        {#if title('Networking')}{#/if}
+        <div class="feedbar">
+            <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+            <span id="feedback" class="feedback"></span>
+        </div>
+            <div class='header'>Networking WOL</div>
+            <div id="WOLPanel" class="panelP">
+                <a class='nav' href="#/networking/wol/" onclick="display('/networking/wol/','#WOLPanel'); return false;">Loading Networking WOL ...</a>
+                <input type="hidden" class="load" value="/networking/wol/">
+            </div>
+            <div class='header'>Networking Resources</div>
+            <div id="netResPanel" class="panelP">
+                <a class='nav' href="#/networking/resources/" onclick="display('/networking/resources/','#netResPanel'); return false;">Loading Networking Resources ...</a>
+                <input type="hidden" class="load" value="/networking/resources/">
+            </div>
+        <div class="feedbar">
+            <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+            <span id="feedback" class="feedback"></span>
+        </div>
+    </textarea>
+    <textarea id="varsPanel" style="display:none">
+        {#if title('Variables')}{#/if}
+        <div class="feedbar">
+            <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+            <div class="refresh_holder"><button onclick="update();">Refresh</button></div>
+            <span id="feedback" class="feedback"></span>
+        </div>
+        <div class='header'>INT</div>
+        <div id="intPanel" class="panelP">
+            <a class='nav' href="#/vars/definitions/1/" onclick="display('/vars/definitions/1/','#intPanel'); return false;">Loading Variables (INT)</a>
+            <input type="hidden" class="load" value="/vars/definitions/1/">
+        </div>
+        <div class='header'>STATE</div>
+        <div id="statePanel" class="panelP">
+            <a class='nav' href="#/vars/definitions/2/" onclick="display('/vars/definitions/2/','#statePanel'); return false;">Loading Variables (STATE)</a>
+            <input type="hidden" class="load" value="/vars/definitions/2/">
+        </div>
+        <div class="feedbar">
+            <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+            <div class="refresh_holder"><button onclick="update();">Refresh</button></div>
+            <span id="feedback" class="feedback"></span>
+        </div>
+    </textarea>
+	<textarea id="nodes" style="display:none">
+		{#if $P.url == "/nodes" || $P.url == "/nodes/"}
+			{#param name=folderView value=true}
+		{#/if}
+		<div class="feedbar">
+			{#if $T.id}
+				{#if $T.parentType == 1}{* Parent is node *}
+					<div  class="back_holder"><button onclick="display('/nodes/{$T.parent}',false,'nodes');">Back</button></div>
+				{#elseif $T.parentType == 3}{* Parent is folder *}
+					<div  class="back_holder"><button onclick="display2('/nodes/',false,false,'folder(\'{$T.parentId}\');');">Back</button></div>
+				{#else}
+					<div  class="back_holder"><button onclick="display('/nodes/');">Back</button></div>
+				{#/if}
+			{#else}
+				<div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+			{#/if}
+			<div class="refresh_holder"><button onclick="update();">Refresh</button></div>
+			<span id="feedback" class="feedback"></span>	
+		</div>
+		{#if $T.id}
+                    <input type="hidden" class="update" value="/nodes/{$T.address}">
+			<div class='node'>
+				<div class='properties'>
+					{#foreach $T.properties as property}
+					<div class='property node{$T.id}{$T.property.id}'>
+						<a class='propertylabel'> {$T.property.label} </a>:
+						<a id='node{$T.id}{$T.property.id}' class='{$T.property.pclass}'>{$T.property.formatted}</a>
+					</div>
+					{#/for}
+				</div>
+				<div class='commands' id='commands'>
+					{#foreach $T.controls as control}
+						{#if controls[$T.control].actions[0]}
+							<select class="node{$T.id}{$T.control}" onchange="getCmd('{$T.address}', '{controls[$T.control].name}/' + this.value);">
+							<option value="null">{controls[$T.control].label}</option>
+							{#foreach controls[$T.control].actions as action}
+								<option value="{$T.action.name}">{$T.action.label}</option>
+							{#/for}
+							</select>
+                                                {#elseif controls[$T.control].action}
+                                                    <input type="button" class="node{$T.id}{$T.control}" onclick="getCmd('{$T.address}','{controls[$T.control].name}/{controls[$T.control].action}');" value="{controls[$T.control].label}">
+						{#else}
+						 <input type="button" class="node{$T.id}{$T.control}" onclick="getCmd('{$T.address}','{controls[$T.control].name}');" value="{controls[$T.control].label}">
+						 {*<button class="node{$T.id}{$T.control}" onclick="getCmd('{$T.address}','{controls[$T.control].name}');">{controls[$T.control].label}</button>*}
+						{#/if}
+					{#/for}
+				</div>
+			</div>
+		{#/if}
+                {#if $T.id && $T.nodes}
+                    <input type="hidden" class="load" value="/status/">
+                {#/if}
+		{#if $T.nodes}
+                    <input type="hidden" class="update" value="/status/">
+                    <div class="nodelist">
+			{#foreach $T.nodes as node}
+			{#if ($T.node.folder && $T.node.name.charAt(0) != nodeHideChar)}{* Show Folders *}
+				<div class="node folder p{$T.node.parentId}" {#if $T.node.parent && $P.folderView}style="display:none"{#/if}>
+					<div class="line1"><a href="#/nodes/&tmpl=nodes&folder={$T.node.id}" onclick="folder('{$T.node.id}','{$T.node.name}');return false;">{$T.node.name}</a></div>
+				</div>
+			{#/if}
+			{#if ($T.node.cat != 0 || showControllers) && ($T.node.flag != 0 || showSubDevices)  && ($T.node.enabled != false || showDisabled) && !$T.node.folder && $T.node.name.charAt(0) != nodeHideChar}{* hides controlers, sub-devices,disabled nodes, folders (already shown above), nodes that start with '~' *}
+			<div class="node p{$T.node.parentId}" {#if $T.node.parent && $P.folderView}style="display:none"{#/if}>
+				<div class="line1">
+					{#if $P.folderView || $T.id}
+                                            <a href="#nodes/{$T.node.address}&tmpl=nodes" onclick="display('/nodes/{$T.node.address}/',false,'nodes');return false;">{$T.node.name}
+					{#else}
+                                            <a href="#nodes/{$T.node.address}" onclick="display('/nodes/{$T.node.address}/',false,false,'setBack(\'{$P.url}\',\'{$T.node.parentId}\');');return false;">{$T.node.name}
+					{#/if}
+					{#if $T.node.cat}
+						{#if $T.node.properties.length <= 1}
+							(<span id='node{$T.node.id}ST' class="{$T.node.statusClass}">{$T.node.status}</span>)</a>
+						{#else}
+							</a></div><div class="properties line1">
+							({#foreach $T.node.properties as property}
+							<span class='node{$T.node.id}{$T.property.id} {$T.property.id}'>
+								<span id='node{$T.node.id}{$T.property.id}' class='{$T.property.pclass}'>{$T.property.formatted}</span>
+								<span class='propertylabelshort'>{$T.property.labelShort}</span>
+							</span>
+							{#/for})
+						{#/if}
+					{#else}
+						</a>
+					{#/if}
+				</div>
+				{#if !$T.node.folder && $T.node.cat !=0}
+					<div class="commands">
+					{#if $T.node.cat == 5}
+                                            {#if $T.node.group == '1'}{* only show up down controls for main thermostat node not the other nodes *}
+						<input type="button" onclick="getCmd('{$T.node.address}','BRT');" value="+">
+						<input type="button" onclick="getCmd('{$T.node.address}','DIM');" value="-">
+                                            {#/if}
+                                        {#elseif $T.node.cat == 1 && $T.node.subCat == 46 && $T.node.group == '2'}{*Fanlinc-Motor, on dosn't work without a speed so set to 100% high*}
+                                                <input type="button" onclick="getCmd('{$T.node.address}','DON/255');" value="ON">
+						<input type="button" onclick="getCmd('{$T.node.address}','DOF');" value="OFF">
+					{#else}
+						<input type="button" onclick="getCmd('{$T.node.address}','DON');" value="ON">
+						<input type="button" onclick="getCmd('{$T.node.address}','DOF');" value="OFF">
+					{#/if}
+					</div>
+				{#/if}
+			</div>
+			{#/if}
+			{#/for}
+                    </div>
+		{#/if}
+		<div class="feedbar">
+			{#if $T.id}
+				{#if $T.parentType == 1}{* Parent is node *}
+					<div  class="back_holder"><button onclick="display('/nodes/{$T.parent}',false,'nodes');">Back</button></div>
+				{#elseif $T.parentType == 3}{* Parent is folder *}
+					<div  class="back_holder"><button onclick="display2('/nodes/',false,false,'folder(\'{$T.parentId}\');');">Back</button></div>
+				{#else}
+					<div  class="back_holder"><button onclick="display('/nodes/');">Back</button></div>
+				{#/if}
+			{#else}
+				<div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+			{#/if}
+			<div class="refresh_holder"><button onclick="update();">Refresh</button></div>
+			<span id="feedback" class="feedback"></span>	
+		</div>
+	</textarea>
+	<textarea id="node" style="display:none">
+            <div class="feedbar">
+                {#if $T.cat}{* node is not a Scene*}
+                    <div  class="back_holder"> <button onclick="display('/nodes/devices/');">Back</button></div>
+                    <div class="refresh_holder"> <button onclick="update('/nodes/{$T.address}/');">Refresh</button></div>
+                    <input type="hidden" class="update" value="/nodes/{$T.address}/">
+                {#elseif !$T.cat}
+                    <div  class="back_holder"> <button onclick="display('/nodes/scenes/');">Back</button></div>
+                {#/if}
+                <span id="feedback" class="feedback"></span>
+            </div>
+            <div class='node'>
+                <div class='properties'>
+                    {#foreach $T.properties as property}
+                    <div class='property node{$T.id}{$T.property.id}'>
+                        <a class='propertylabel'> {$T.property.label} </a>:
+                        <a id='node{$T.id}{$T.property.id}' class='{$T.property.pclass}'>{$T.property.formatted}</a>
+                    </div>
+                    {#/for}
+                </div>
+                <div class='commands' id='commands'>
+                    {#foreach $T.controls as control}
+                        {#if controls[$T.control].actions[0]}
+                            <select class="node{$T.id}{$T.control}" onchange="getCmd('{$T.address}', '{controls[$T.control].name}/' + this.value);">
+                            <option value="null">{controls[$T.control].label}</option>
+                            {#foreach controls[$T.control].actions as action}
+                                    <option value="{$T.action.name}">{$T.action.label}</option>
+                            {#/for}
+                            </select>
+                        {#else}
+                             <input type="button" class="node{$T.id}{$T.control}" onclick="getCmd('{$T.address}','{controls[$T.control].name}');" value="{controls[$T.control].label}">
+                             {*<button class="node{$T.id}{$T.control}" onclick="getCmd('{$T.address}','{controls[$T.control].name}');">{controls[$T.control].label}</button>*}
+                        {#/if}
+                    {#/for}
+                </div>
+            </div>
+            <div class="feedbar">
+                {#if $T.cat}{* node is not a Scene*}
+                    <div  class="back_holder"> <button onclick="display('/nodes/devices/');">Back</button></div>
+                    <div class="refresh_holder"> <button onclick="update('/nodes/{$T.address}/');">Refresh</button></div>
+                    <input type="hidden" class="update" value="/nodes/{$T.address}/">
+                {#elseif !$T.cat}
+                    <div  class="back_holder"> <button onclick="display('/nodes/scenes/');">Back</button></div>
+                {#/if}
+                <span id="feedback" class="feedback"></span>
+            </div>
+	</textarea>
+	<textarea id="programs" style="display:none">
+	{#if title($T.name)}
+	{#/if}
+	<div class="feedbar">
+            {#if $T.parentId}
+                    <div  class="back_holder"><button onclick="display('/programs/{$T.parentId}/');">Back</button></div>
+            {#else}
+                    <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+            {#/if}
+            <div class="refresh_holder"><button onclick="update('/programs/{$T.id}/');">Refresh</button></div>
+            <input type="hidden" class="update" value="/programs/{$T.id}/">
+            <span id="feedback" class="feedback"></span>	
+	</div>
+	{#if $T.folder}
+            <div class="programlist">
+                {#foreach $T.programs as program}
+                    <div {#if $T.program.folder}class="folder"{#else}class="program"{#/if}>
+                        <div class='line1'>
+                        <a href="#programs/{$T.program.id}" onclick="display('/programs/{$T.program.id}/');return false;">{$T.program.name} (<span id='program{$T.program.id}ST' class="{$T.program.statusClass}">{$T.program.status}</span>)</a>
+                        </div>
+                    </div>
+                {#/for}
+            </div>	
+	{#else}
+            <div class='program'>
+                <div class='properties'>
+                    {#foreach $T.properties as property}
+                        <div class='property'>
+                            <span class='peropetylabel'>{$T.property.label}</span>:
+                            <span id="program{$T.id}{$T.property.id}" class="{$T.property.pclass}">{$T.property.formatted}</span>
+                        </div>
+                    {#/for}
+                </div>
+                <div class='commands'>
+                    <input type="button" onclick="update('/programs/{$T.id}/runIf/');" value="Run If"> 
+                    <input type="button" onclick="update('/programs/{$T.id}/runThen/');" value="Run Then"> 
+                    <input type="button" onclick="update('/programs/{$T.id}/runElse/');" value="Run Else"> 
+                    <input type="button" onclick="update('/programs/{$T.id}/stop/');" value="Stop">
+                    <br>
+                    <input type="button" onclick="update('/programs/{$T.id}/enable/');" value="Enable">
+                    <input type="button" onclick="update('/programs/{$T.id}/disable/');" value="Disable">
+                    <br>
+                    <input type="button" onclick="update('/programs/{$T.id}/enableRunAtStartup/');" value="Run At Startup">
+                    <input type="button" onclick="update('/programs/{$T.id}/disableRunAtStartup/');" value="Do Not Run at Startup">
+                    {*
+                    <button onclick="update('/programs/{$T.id}/runIf/');">Run If</button> 
+                    <button onclick="update('/programs/{$T.id}/runThen/');">Run Then</button> 
+                    <button onclick="update('/programs/{$T.id}/runElse/');">Run Else</button> 
+                    <button onclick="update('/programs/{$T.id}/stop/');">Stop</button> 
+                    <br>
+                    <button onclick="update('/programs/{$T.id}/enable/');">Enable</button> 
+                    <button onclick="update('/programs/{$T.id}/disable/');">Disable</button> 
+                    <br>
+                    <button onclick="update('/programs/{$T.id}/enableRunAtStartup/');">Run At Startup</button> 
+                    <button onclick="update('/programs/{$T.id}/disableRunAtStartup/');">Do Not Run at Startup</button> 
+                    <br>
+                    *}
+                </div>
+            </div>             
+	{#/if}
+        <div class="feedbar">	
+            {#if $T.parentId}
+                    <div  class="back_holder"><button onclick="display('/programs/{$T.parentId}/');">Back</button></div>
+            {#else}
+                    <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+            {#/if}
+            <div class="refresh_holder"><button onclick="update('/programs/{$T.id}/');">Refresh</button></div>
+            <span id="feedback" class="feedback"></span>	
+        </div>	
+</textarea>
+<textarea id="climate" style="display:none">
+	<div class="feedbar">
+            <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+            <div class="refresh_holder"><button onclick="update('/climate/');">Refresh</button></div>	
+            <span id="feedback" class="feedback"></span>
+            <input type="hidden" class="update" value="/climate/">
+	</div>		
+	{#if $T.enabled}
+		<div class='node'>
+			<div class='properties'>
+				{#foreach $T.properties as property}
+					<div class='property'>
+						<span class='propertylabel'> {$T.property.label} </span>:
+						<span id='{$T.property.id}' class='true'>{$T.property.formatted}</span>
+					</div>
+				{#/for}
+			</div>
+			<br><br><a href="{$T.rss}" class="WeatherBug">Courtesy of WeatherBug™</a>
+		</div>
+	{#else}
+		Weather Module Disabled
+	{#/if}
+        <div class="feedbar">
+            <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+            <div class="refresh_holder"><button onclick="update('/climate/');">Refresh</button></div>	
+            <span id="feedback" class="feedback"></span>
+            <input type="hidden" class="update" value="/climate/">
+	</div>	
+</textarea>
+<textarea id="time" style="display:none">
+    {#if $P.target == "#main"}
+        <div class="feedbar">
+                <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+                <div class="refresh_holder"><button onclick="update();">Refresh</button></div>
+                <span id="feedback" class="feedback"></span>
+        </div>
+    {#/if}
+    {#foreach $T.properties as property}
+        <div class='property'>
+                <span class='propertylabel'> {$T.property.label} </span>:
+                <span id='{$T.property.id}' class='{$T.property.pclass}'>{$T.property.formatted}</span>
+        </div>
+    {#/for}
+    {#if $P.target == "#main"}
+        <div class="feedbar">
+                <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+                <div class="refresh_holder"><button onclick="update();">Refresh</button></div>
+                <span id="feedback" class="feedback"></span>
+        </div>
+    {#/if}
+</textarea>
+<textarea id="eMeter" style="display:none">
+	<div class="feedbar">
+	{#if $T.AMIMetering && $T.AMIMessage}
+		<div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+	{#else}
+		<div  class="back_holder"><button onclick="display('/emeter/');">Back</button></div>
+	{#/if}	
+		<div class="refresh_holder"><button onclick="update();">Refresh</button></div>	
+		<span id="feedback" class="feedback"></span>
+	</div>
+		<div class='node'>
+			{#if $T.AMIMetering}
+				{#if $T.time}
+				<div class='properties'>
+					{#foreach $T.time.properties as property}
+						<div class='property {$T.property.id}'>
+							<span class='propertylabel'>{$T.property.label}</span> :
+							<span id='{$T.property.id}' class='{$T.property.pclass}'>{$T.property.formatted}</span>
+						</div>
+					{#/for}
+				</div>
+				{#/if}
+				{#if $T.AMIMetering.url}
+				<div class ='line1'>
+					<a class='right' href="javascript:display('{$T.AMIMetering.url}');">></a>
+					Utility Metering
+				</div>
+				{#elseif title('Utility Metering');}
+				{#/if}
+				<div class='properties'>
+					{#foreach $T.AMIMetering.properties as property}
+						<div class='property {$T.property.id}'>
+							<span class='propertylabel'>{$T.property.label}</span> :
+							<span id='{$T.property.id}' class='{$T.property.pclass}'>{$T.property.formatted}</span>
+						</div>
+					{#/for}
+				</div>
+			{#/if}
+			{#if $T.AMIPrice}
+				{#if $T.AMIPrice.url}
+					<div class ='line1'>
+						<a class='right' href="javascript:display('{$T.AMIPrice.url}');">></a>
+						Utility Price
+					</div>
+				{#elseif title('Utility Price');}
+				{#/if}
+				<div class='properties'>
+					{#foreach $T.AMIPrice.properties as property}
+						<div class='property {$T.property.id}'>
+							<span id='label{$T.property.id}' class='propertylabel'>{$T.property.label}</span> :
+							<span id='{$T.property.id}' class='{$T.property.pclass}'>{$T.property.formatted}</span>
+						</div>
+					{#/for}
+				</div>
+			{#/if}
+			{#if $T.AMIMessage}
+				{#if $T.AMIMessage.url}
+					<div class ='line1'>
+						<a class='right' href="javascript:display('{$T.AMIMessage.url}');">></a>
+						Utility Message
+					</div>
+				{#elseif title('Utility Message');}
+				{#/if}
+				<div class='properties'>
+					{#foreach $T.AMIMessage.properties as property}
+						<div class='property {$T.property.id}'>
+							<span class='propertylabel'> {$T.property.label} </span>:
+							<span id='{$T.property.id}' class='{$T.property.pclass}'>{$T.property.formatted}</span>
+						</div>
+					{#/for}
+				</div>
+				<div class='commands'>
+					{#foreach $T.AMIMessage.controls as control}
+						<button class='{$T.control.id}' onclick="update('{$T.control.url}')">{$T.control.label}</button>
+					{#/for}
+				</div>
+			{#/if}
+			{#if $T.AMILoadControl}
+				{#if $T.AMILoadControl.url}
+					<div class ='line1'>
+						<a class='right' href="javascript:display('{$T.AMILoadControl.url}');">></a>
+						Utility Demand/Response
+					</div>
+				{#elseif title('Utility Demand/Response');}
+				{#/if}
+				<div class='properties'>
+					{#foreach $T.AMILoadControl.properties as property}
+						<div class='property'>
+							<span class='propertylabel'>{$T.property.label}</span> :
+							<span id='{$T.property.id}' class='{$T.property.pclass}'>{$T.property.formatted}</span>
+						</div>
+					{#/for}
+				</div>
+				<div class='commands'>
+					{#foreach $T.AMILoadControl.controls as control}
+						<button class='{$T.control.id}' onclick="update('{$T.control.url}')">{$T.control.label}</button>
+					{#/for}
+				</div>
+			{#/if}
+		</div>
+</textarea>
+<textarea id="eMeterChart" style="display:none">
+	<div class="feedbar">
+		<div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+		<div class="refresh_holder"><button onclick="update();">Refresh</button></div>
+		<span id="feedback" class="feedback"></span>
+	</div>
+	<div class="charts panel">
+		<div class="line1">Usage This Month by Day</div>
+		<div id="chartMonth" class="chart"></div>
+		<div class="line1">Usage This Year by Month</div>
+		<div id="chartYear" class="chart"></div>
+   	</div>
+</textarea>
+<textarea id="netConfig" style="display:none">
+    {#if $P.target == "#main"}
+        <div class="feedbar">
+            <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+            <span id="feedback" class="feedback"></span>
+	</div>
+    {#/if}
+	<div class='nodelist netConfig'>
+	{#foreach $T as rule}
+            <div class='node'>
+                <div class="line1">
+                <span>{$T.rule.name}</span>
+                {#if $T.rule.mac}{* mac means it is WOL else it is a resource *}
+                    <button onclick="update('/networking/wol/{$T.rule.id}/');">Wake</button>
+                {#else}
+                    <button onclick="update('/networking/resources/{$T.rule.id}/');">Run</button>
+                {#/if}
+                </div>
+            </div>
+	{#/for}
+	</div>
+    {#if $P.target == "#main"}
+        <div class="feedbar">
+            <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+            <span id="feedback" class="feedback"></span>
+	</div>
+    {#/if}
+</textarea>
+<textarea id="vars" style="display:none">
+    {#if $P.target == "#main"}
+        <div class="feedbar">
+            <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+            <div class="refresh_holder"><button onclick="update();">Refresh</button></div>
+            <span id="feedback" class="feedback"></span>
+        </div>
+    {#/if}
+    <input type="hidden" class="update" value="/vars/get/{$T[0].typeN}/">
+    <input type="hidden" class="load" value="update">
+    <div class='nodelist'>
+        {#foreach $T as v}
+            <div class='node'>
+                <div class='line1'>
+                    {$T.v.name} (<span id="var{$T.v.typeN}_{$T.v.id}VARVAL"></span>,<span id="var{$T.v.typeN}_{$T.v.id}VARINIT"></span>)
+                </div>
+                <div class='line1'>
+                    <span id="var{$T.v.typeN}_{$T.v.id}VARTS"></span>
+                </div>
+                <div class="commands">
+                    <input type="text" id="var{$T.v.typeN}_{$T.v.id}VARSETVAL" Maxlength="10" pattern="[0-9]*"/>
+                    <input type="button" value="Set Current" onclick="update('/vars/set/{$T.v.typeN}/{$T.v.id}/' + $('#var{$T.v.typeN}_{$T.v.id}VARSETVAL').attr('value')); return false;"/>
+                    <input type="button" value="Set Init" onclick="update('/vars/init/{$T.v.typeN}/{$T.v.id}/' + $('#var{$T.v.typeN}_{$T.v.id}VARSETVAL').attr('value')); return false;"/>
+                </div>
+            </div>
+        {#/for}
+    </div>
+    {#if $P.target == "#main"}
+        <div class="feedbar">
+            <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+            <div class="refresh_holder"><button onclick="update();">Refresh</button></div>
+            <span id="feedback" class="feedback"></span>
+        </div>
+    {#/if}
+</textarea>
+<textarea id="elkTopology" style="display:none">
+    {#if $P.target == "#main"}
+        <div class="feedbar">
+            <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+            <div class="refresh_holder"><button onclick="update();">Refresh</button></div>
+            <span id="feedback" class="feedback"></span>
+        </div>
+    {#/if}
+    <input type="hidden" class="update" value="/elk/get/status">
+    <input type="hidden" class="load" value="update">
+    <div id="elk" class='elk'>
+        <div id="DisconnectedError">
+            Not connected to the Elk Security System!
+        </div>
+        {#if modules.elk.isInstalled}{* only show DisabledError if elk module is installed *}
+            <div id="DisabledError">
+                Elk Module is disabled!
+            </div>
+        {#/if}
+        {#foreach $T.areas as area}
+            <div class="node area ae{$T.area.id}">
+                <div class="line1">
+                    <a href="#/elk/get/topology/&elk=ae{$T.area.id}" id="ae{$T.area.id}Name" onclick="elk('ae{$T.area.id}');return false;" class="name basic">{$T.area.name}</a>
+                </div>
+                <div class="properties line1">
+                    <span class="basic">(</span>
+                    <span class="property"><span class="label advanced" style="display:none">Armed Status : </span><span id="ae{$T.area.id}ArmedState">?</span><span class="basic">,</span></span>
+                    <span class="property"><span class="label advanced" style="display:none">Arm Up State : </span><span id="ae{$T.area.id}ArmUpState">?</span><span class="basic">,</span></span>
+                    <span class="property"><span class="label advanced" style="display:none">Alarm State : </span><span id="ae{$T.area.id}AlarmState">?</span></span>
+                    <span class="basic">)</span>
+                </div>
+                <div class="commands basic">
+                    <input type="button" value="Arm Away" onclick="update('elk/area/{$T.area.id}/cmd/arm?armType=1')">
+                    <input type="button" value="Arm Stay" onclick="update('elk/area/{$T.area.id}/cmd/arm?armType=2')">
+                    <input type="button" value="Disarm" onclick="update('elk/area/{$T.area.id}/cmd/disarm')">
+                </div>
+                <div style="display:none" class="commands advanced">
+                    <input type="button" value="Arm Away" onclick="update('elk/area/{$T.area.id}/cmd/arm?armType=1')">
+                    <input type="button" value="Arm Stay" onclick="update('elk/area/{$T.area.id}/cmd/arm?armType=2')">
+                    <input type="button" value="Disarm" onclick="update('elk/area/{$T.area.id}/cmd/disarm')">
+                    <select onchange="updateFilter('elk/area/{$T.area.id}/cmd/arm?armType=' + this.value);this.value = 'null'">
+                        <option value="null" onclick="return false;">Arm ...</option>
+                        <option value = "1">Arm Away</option>
+                        <option value = "2">Arm Stay</option>
+                        <option value = "3">Arm Stay Instant</option>
+                        <option value = "4">Arm Night</option>
+                        <option value = "5">Arm Night Instant</option>
+                        <option value = "6">Arm Vacation</option>
+                        <option value = "7">Arm to Next Away Mode</option>
+                        <option value = "8">Arm to Next Stay Mode</option>
+                    </select>
+                    <br><input type="button" value="Bypass" onclick="update('elk/area/{$T.area.id}/cmd/bypass')">
+                    <input type="button" value="Unbypass" onclick="update('elk/area/{$T.area.id}/cmd/unbypass')">
+                    <input type="button" value="Status" onclick="update('/elk/areas/query')">
+                </div>
+                <div style="display:none" class="commands advanced">
+                    <div class="title">Display Text on all {$T.area.name} Keypads</div>
+                    <div class="displayText">
+                        <input type="text" size="33" id="ae{$T.area.id}Text">
+                        <br>
+                        <select id="ae{$T.area.id}Beep">
+                            <option value="false">No Beep</option>
+                            <option value="true">Beep</option>
+                        </select>
+                        <select id="ae{$T.area.id}Seconds">
+                            <option value="null">Seconds</option>
+                            <option value="15">15 Secs</option>
+                            <option value="30">30 Secs</option>
+                            <option value="60">60 Secs</option>
+                        </select>
+                        <input type="button" value="Display" onClick="elkKpText({$T.area.id});">
+                    </div>
+                </div>
+            </div>
+            {#foreach $T.area.keypads as keypad}
+                <div style="display:none;" class="node keypad ae{$T.area.id} kp{$T.keypad.id}">
+                    <div>
+                        <div class="line1">
+                            <a href="#/elk/get/topology/&elk=ae{$T.area.id}.kp{$T.keypad.id}" id="kp{$T.keypad.id}Name" onclick="elk('ae{$T.area.id}.kp{$T.keypad.id}');return false;" class="name basic">{$T.keypad.name}</a>
+                            <span class="basic" style="display: none;">(</span><span class="properties">
+                                <span class="property"><span class="label advanced">Temperature:</span><span id="ke{$T.keypad.id}KeypadTemperatureState"></span></span>
+                            </span><span class="basic" style="display: none;">)</span>
+                        </div>
+                    </div>
+                    <div style="display:none" class="commands advanced">
+                        {#foreach $T.keypad.keys as key}
+                            <input type="button" value="{$T.key.name}" onclick="update('elk/keypad/{$T.keypad.id}/cmd/press/funcKey/{$T.key.id}');">
+                        {#/for}
+                        <br>
+                        <input type="button"  value="Status" onclick="update('elk/keypad/{$T.keypad.id}/query/temperature');">
+                    </div>
+                </div>
+            {#/for}
+            {#foreach $T.area.zones as zone}
+                <div style="display:none;" class="node zone ae{$T.area.id} ze{$T.zone.id}">
+                    <div class="line1">
+                        <span class="name">{$T.zone.name}</span> <span class="na">{$T.zone.alarmDef}</span>
+                    </div>
+                    <div class="properties line1">
+                        (<span id="ze{$T.zone.id}LogicalZoneState">?</span>,
+                        <span id="ze{$T.zone.id}PhysicalZoneState">?</span>,
+                        <span id="ze{$T.zone.id}ZoneVoltageState">?</span>
+                        <span id="ze{$T.zone.id}ZoneTemperatureState"></span>)
+                    </div>
+                    <div class="commands">
+                        <div><input type="button" value="Bypass" onclick="update('elk/zone/{$T.zone.id}/cmd/toggle/bypass')"></div>
+                    </div>
+                </div>
+            {#/for}
+        {#/for}
+        {#if modules.elk.isInstalled}{* only show outputs and thermostats menu items if elk module is installed *}
+            <a class="nav node menu" href="#/elk/get/topology/&elk=output" onclick="elk('output');return false;">Outputs</a> 
+            {#foreach $T.outputs as output}
+                <div style="display: table-row-group;display:none" class="node output oe{$T.output.id}">
+                    <div class="line1">
+                        <span class="name">{$T.output.name}</span>
+                        (<span id="oe{$T.output.id}ST"></span>)
+                    </div>
+                    <div class="commands">
+                        <input type="button" onclick="update('/elk/output/{$T.output.id}/cmd/on');" value="ON">
+                        <input type="button" onclick="update('/elk/output/{$T.output.id}/cmd/off');" value="OFF">
+                    </div>
+                </div>
+            {#/for}
+        <a class="nav node menu" href="#/elk/get/topology/&elk=tstat" onclick="elk('tstat');return false;">Thermostats</a> 
+            {#foreach $T.tstats as tstat}
+                <div style="display:none;" class="node tstat te{$T.tstat.id}">
+                    <span id="te{$T.tstat.id}" class="tstat te{$T.tstat.id}">
+                        <div class="line1">
+                            <a href="#/elk/get/topology/&elk=te{$T.tstat.id}" id="te{$T.tstat.id}Name" onclick="elk('te{$T.tstat.id}');return false;" class="name basic">{$T.tstat.name}</a>
+                            <div class="properties line1">
+                                <span class="basic">(</span>
+                                <span class="property"><span class="label advanced">Status : </span><span id="te{$T.tstat.id}ThermostatTempState"></span></span>
+                                <span class="property"><span class="label advanced">Mode : </span><span id="te{$T.tstat.id}ThermostatModeState"></span></span>
+                                <span class="property ThermostatHeatSetPoint"><span class="label advanced">Heat Setpoint : </span><span id="te{$T.tstat.id}ThermostatHeatSetPoint"></span><span class="autoLabel">(H)</span></span>
+                                <span class="property ThermostatCoolSetPoint"><span class="label advanced">Cool Setpoint : </span><span id="te{$T.tstat.id}ThermostatCoolSetPoint"></span><span class="autoLabel">(C)</span></span>
+                                <span class="advanced">
+                                    <span class="property"><span class="label">Hold : </span><span id="te{$T.tstat.id}ThermostatHoldState"></span></span>
+                                    <span class="property"><span class="label">Fan : </span><span id="te{$T.tstat.id}ThermostatFanState"></span></span>
+                                    <!--<span class="property"><span class="label">Humidity : </span><div id="te{$T.tstat.id}ThermostatHumidityState"></span></span>-->
+                                </span>
+                                <span class="basic">)</span>
+                            </div>
+                        </div>
+                        <div id="commands" class="commands advanced">
+                            <select onchange="updateFilter('/elk/tstat/{$T.tstat.id}/cmd/6?value=' + this.value);this.value = 'null';" class="">
+                                <option value="null">Heat Setpoint</option>
+                                {#for index = 36 to 85} 
+                                <option value="{$T.index}">{$T.index}</option>
+                                {#/for}
+                            </select>
+                            <select onchange="updateFilter('/elk/tstat/{$T.tstat.id}/cmd/5?value=' + this.value);this.value = 'null';" class="">
+                                <option value="null">Cool Setpoint</option>
+                                {#for index = 55 to 85} 
+                                <option value="{$T.index}">{$T.index}</option>
+                                {#/for}
+                            </select>
+                            <select onchange="updateFilter('/elk/tstat/{$T.tstat.id}/cmd/1?value=' + this.value);this.value = 'null';" class="">
+                                <option value="null">Thermostat Mode</option>
+                                <option value="0">Off</option>
+                                <option value="1">Heat</option>
+                                <option value="2">Cool</option>
+                                <option value="3">Auto</option>
+                                <option value="4">Emergency Heat</option>
+                            </select>
+                            <select onchange="updateFilter('/elk/tstat/{$T.tstat.id}/cmd/3?value=' + this.value);this.value = 'null';" class="">
+                                <option value="null">Fan State</option>
+                                <option value="0">Auto</option>
+                                <option value="1">On</option>
+                            </select>
+                            <select onchange="updateFilter('/elk/tstat/{$T.tstat.id}/cmd/2?value=' + this.value);this.value = 'null';" class="">
+                                <option value="null">Set Hold</option>
+                                <option value="0">Do not Hold</option>
+                                <option value="1">Hold</option>
+                            </select>
+                            <input type="button" onclick="update('/elk/tstat/{$T.tstat.id}/query')" value="Status">
+                        </div>
+                    </span>
+                </div>
+            {#/for}
+        {#/if}
+        <a class="nav node menu" href="#/elk/refresh/topology" onclick="display("/elk/refresh/topology");return false;">Refresh Topology</a> 
+    </div>
+    {#if $P.target == "#main"}
+        <div class="feedbar">
+            <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+            <div class="refresh_holder"><button onclick="update();">Refresh</button></div>
+            <span id="feedback" class="feedback"></span>
+        </div>
+    {#/if}
+</textarea>
+<textarea id="elkError" style="display:none">
+    {#if $P.target == "#main"}
+        <div class="feedbar">
+            <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+            <div class="refresh_holder"><button onclick="update();">Refresh</button></div>
+            <span id="feedback" class="feedback"></span>
+        </div>
+    {#/if}
+    <input type="hidden" class="update" value="/elk/system/get/status">
+    <input type="hidden" class="load" value="update">
+    <div id="elk" class='elk'>
+        <div class="error">
+            Elk Rest command failed, elk status:
+        </div>
+        <br>
+        <div class="properties">
+            <div class="property">
+                <span class="propertylabel">Connection:</span>
+                <span id="seSystemConnectionState"></span>
+            </div>
+            {#if modules.elk.isInstalled}{* only show DisabledError if elk module is installed *}
+            <div class="property">
+                <span class="propertylabel">Module:</span>
+                <span id="seSystemEnableState"></span>
+            </div>
+            {#/if}
+        </div>
+        <br>
+        <a class="nav" href="#{$P.url}" onclick="display('{$P.url}')">Retry</a>   
+    </div>
+    {#if $P.target == "#main"}
+        <div class="feedbar">
+            <div  class="back_holder"><button onclick="display('/config/');">Back</button></div>
+            <div class="refresh_holder"><button onclick="update();">Refresh</button></div>
+            <span id="feedback" class="feedback"></span>
+        </div>
+    {#/if}
+</textarea>
+</body>
+</html>
