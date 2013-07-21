@@ -1,0 +1,351 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<!--
+* ISY AJAX
+* http://sites.google.com/site/isyajax/
+* Copyright 2011, Nicholas Stein
+* Licensed under the MIT license: http://www.opensource.org/licenses/mit-license.php
+*
+* ISY AJAX - Bootstrap
+* http://github.com/jnovack/isyajax-bootstrap/
+* Copyright 2013, Justin J. Novack
+* Licensed under the MIT license: http://www.opensource.org/licenses/mit-license.php
+-->
+<html>
+
+<head>
+    <meta http-equiv="content-type" content="text/html; charset=iso-8859-1">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <link href="data:image/x-icon;base64,AAABAAEAEBAQAAAAAAAoAQAAFgAAACgAAAAQAAAAIAAAAAEABAAAAAAAgAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAP//AP///wAZ//8Apf//AEv//wDMzMwANf//AL///wCZmZkAgP//AACZzABA//8A3d3dAHD//wAAAAAAAAAGZmAAAAAAAAmZlgAAAAAACd2WAAAAAAAJZpYAAAAAAAkilgAAAAAACWaWAAAAAAALu7YAAAAAALERG2AAAAALERERtgAAAAt8cxG2AAAAterlMRtgAAC+SE5xG2AAALqCisEbYAAAC0hOcbYAAAAAuuU7YAAAAAALu7YAAAD4fwAA+D8AAPg/AAD4PwAA+D8AAPg/AAD4PwAA8B8AAOAPAADgDwAAwAcAAMAHAADABwAA4A8AAPAfAAD4PwAA" rel="icon" type="image/x-icon" />
+    <link href="bootstrp.css" rel="stylesheet">
+    <link href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.min.css" rel="stylesheet">
+    <link href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome-ie7.min.css" rel="stylesheet">
+    <style type="text/css">
+    @media (min-width: 979px) {
+      body {
+        padding-top: 60px;
+      }
+    }
+    body {
+        background-color: white;
+        color: black;
+    }
+    #main {
+        margin-top: 10px;
+    }
+    select {
+        margin-bottom: 0px;
+    }
+    table {
+        margin-top: 20px;
+        border-width: 1px;
+        border-spacing: 1px;
+        border-style: groove;
+        border-collapse: separate;
+    }
+    table th {
+        border-width: 1px;
+        padding: 1px;
+        border-style: groove;
+    }
+    table td {
+        border-width: 1px;
+        padding: 1px;
+        border-style: groove;
+    }
+    .folder
+    {
+        font-weight: bold;
+    }
+    .properties{
+        width:100%;
+        float: none;
+        display: inline-block;
+    }
+    .property {
+        float: left;
+        padding: 1px;
+        border-width: 1px;
+        border-style: groove;	
+        border-spacing: 1px;
+        border-collapse: separate;
+    }
+    .propertylabel {
+        font-weight: bold;
+        border-style: groove;
+        padding: 1px;
+        border-width: 1px;
+        border-spacing: 1px;
+        border-collapse: separate;
+    }
+    .commands {
+        float: none;
+    }
+    .on {
+        color: green;
+    }
+    .off {
+        color: red;
+    }
+    .na {
+        color: green;
+    }
+    .true {
+        color: green;
+    }
+    .false {
+        color: red;
+    }
+    .runningthen {
+        font-style:italic; 
+        color: teal;
+    }
+    .runningelse {
+        font-style:italic; 
+        color: purple;
+    }
+    </style>
+    <meta name="author" content="Nicholas Stein">
+    <meta name="author" content="Justin J. Novack">
+    <title>My Lighting</title>
+    <script type="text/javascript" src="jqueryv2.js"></script>
+    <script type="text/javascript" src="jtemp.js"></script>
+    <script type="text/javascript" src="jjson.js"></script>
+    <script type="text/javascript" src="jstorage.js"></script>
+    <script type="text/javascript" src="isyajax.js"></script>
+    <!--[if IE]><script language="javascript" type="text/javascript" src="excanvas.js"></script><![endif]-->
+    <script type="text/javascript" src="flot.js"></script>
+    <script src="bootstrp.js"></script>
+    <script type="text/javascript">
+        //******* Default Options ********
+        var nodeHideChar = "~";
+        $(document).ready(init);
+
+        function init(){
+            //look for page to display, after loading config
+            if ($.gup("display"))//looks for display in get information (?)
+            {
+                    var durl = $.gup("display").replace(/_/g,"/");
+                    display("/config/",'#navbar',false,"display('" + durl + "')");//Gets page to display from get information
+            }
+            else if (top.location.hash)//if not get information check for hash
+            {
+                var durl = top.location.hash.slice(1);
+                var durl = durl.replace(/_/g,"/");
+                display("/config/",'#navbar',false,"display('" + durl + "')");
+            }
+            else
+            {display("/config/", '#dropdown-config', false, "display('/nodes/devices/');");}
+        }
+        jQuery.extend({   
+            gup: function(param){//Retrieves get information form URL 
+                var param = param.replace(/[[]/,"[").replace(/[]]/,"]");    
+                var regexS = "[?&]"+param+"=([^&#]*)";     
+                var regex = new RegExp(regexS);     
+                var results = regex.exec(window.location.href);     
+                if(results) {    
+                    return results[1];   
+                }  
+            }
+        });
+    </script>
+</head>
+
+<body>
+<div class="navbar navbar-inverse navbar-fixed-top">
+  <div class="navbar-inner">
+    <div class="container">
+      <button type="button" class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+      <a class="brand" href="#">My Lighting</a>
+      <div class="nav-collapse collapse">
+        <ul class="nav">
+          <li class="active" id="menu-devices"><a href="#nodes/devices/" onclick="display('/nodes/devices/');$('li').removeClass();$('#menu-devices').addClass('active');return(false);">Devices</a></li>
+          <li id="menu-scenes"><a href="#nodes/scenes/" onclick="display('/nodes/scenes/');$('li').removeClass();$('#menu-scenes').addClass('active');return(false);">Scenes</a></li>
+          <li id="menu-programs"><a href="#programs/" onclick="display('/programs/');$('li').removeClass();$('#menu-programs').addClass('active');return(false);">Programs</a></li>
+          <li class="dropdown"><a href="#" class="dropdown-toggle" data-toggle="dropdown">Modules <i class='icon-caret-down'></i></a>
+            <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu" id='dropdown-config'>
+            </ul>
+          </li>
+          <li class="dropdown"><a href="#" class="dropdown-toggle" data-toggle="dropdown">Admin <i class='icon-caret-down'></i></a>
+            <ul class="dropdown-menu" role="menu" aria-labelledby="dropdownMenu" id='dropdown-admin'>
+              <li><a tabindex="-1" href="/admin">Administrative Console</a></li>
+              <li><a tabindex="-1" href="" onclick="$.jStorage.flush(); cache.html = []; alert('Cache Cleared'); $('li').removeClass();return false;">Clear Cache</a></li>
+              <li class="divider"></li>
+              <li><a tabindex="-1" href="/WEB/index.htm">Default Interface</a></li>
+            </ul>
+          </li>
+        </ul>
+        <ul class="nav pull-right">
+          <li><a href="https://github.com/jnovack/isyajax-bootstrap"><i class='icon-github-sign icon-large'></i></a></li>
+        </ul>
+      </div><!--/.nav-collapse -->
+    </div><!--/.container -->
+  </div><!--/.navbar-inner -->
+</div><!--/.navbar -->
+
+<div class="container">
+<h1 id='title'></h1>
+<div id='navbar'></div>
+<div id="main"></div>
+
+<!-- Templates -->
+<textarea id="config" style="display:none">
+		{#if $T.modules.climate.isInstalled}{*Wheather Module*}
+                 <li><a tabindex="-1" href="#climate" onclick="display('/climate/'); $('li').removeClass();return false;">Weather Information</a></li>
+		{#/if}
+		{#if $T.modules.eMeter.isInstalled}{*eMeter*}
+                <li><a tabindex="-1" href="#emeter/status" onclick="display('/emeter/status'); $('li').removeClass();return false;">Utility Meter</a></li>
+		{#/if}
+		{#if $T.modules.networking.isInstalled}{*Networking*}
+                <li><a tabindex="-1" href="#networking/resources/" onclick="display('/networking/resources/'); $('li').removeClass(); return false;">Networking Resources</a></li>
+                <li><a tabindex="-1" href="#networking/wol/" onclick="display('/networking/wol/'); $('li').removeClass();return false;">Networking WOL</a></li>
+		{#/if}
+</textarea>
+<textarea id="nodes" style="display:none">
+	<button class='btn btn-mini btn-primary' onclick="javascript:update('/status/');"><i class="icon-repeat"></i> Refresh status</a></button>
+	<table class="table table-bordered table-hover table-condensed">	
+		<tr><th>Name</th><th>Status</th><th>Control</th></tr>
+		{#foreach $T.nodes as node}
+		{#if $T.node.name.charAt(0) != nodeHideChar}
+		<tr>
+			<td>
+				<a href="#nodes/{$T.node.address}" onclick="display('/nodes/{$T.node.address}');return false;">{$T.node.name}</a>
+			</td>
+			<td id="node{$T.node.id}ST" class="{$T.node.statusClass}">{$T.node.status}</td>
+			<td>
+				{#if $T.node.cat == 1 || $T.node.cat == 2 || $T.node.cat == 7 || !$T.node.cat}
+				<button class='btn btn-mini btn-success' onclick="getCmd('{$T.node.address}','DON');">ON</button> 
+				<button class='btn btn-mini btn-danger' onclick="getCmd('{$T.node.address}','DOF');">OFF</button>
+				{#/if}
+			</td>
+		</tr>
+		{#/if}
+		{#/for}
+	</table>
+	<button class='btn btn-mini btn-primary' onclick="javascript:update('/status/');"><i class="icon-repeat"></i> Refresh status</a></button>
+</textarea>
+<textarea id="programs" style="display:none">
+        {#if title($T.name)}
+	{#/if}
+	{#if $T.parentId}
+	    <button class='btn btn-mini btn-info' onclick="javascript:display('/programs/{$T.parentId}/'); return false;"><i class="icon-mail-reply"></i> Back</a></button>
+	{#/if}
+	<button class='btn btn-mini btn-primary' onclick="javascript:update('/programs/{$T.id}');return false;"><i class="icon-repeat"></i> Refresh status</a></button>
+	{#if $T.folder}
+	     <table class="table table-bordered table-hover table-condensed">	
+			<tr><th>Name</th><th>Status</th><th>Last Run</th><th>Last Finish</th><th>Next Run Time</th><th>Control</th></tr>
+			{#foreach $T.programs as program}
+			<tr {#if $T.program.folder}class="folder"{#/if}>
+				<td>
+					<a href="#programs/{$T.program.id}/" onclick="display('/programs/{$T.program.id}/');return false;">{$T.program.name}</a>
+				</td>
+				<td id="program{$T.program.id}ST" class="{$T.program.statusClass}">{$T.program.status}</td>
+				{#if !$T.program.folder}
+					<td id="program{$T.program.id}PRGLR">{$T.program.lastRun}</td>			
+					<td id="program{$T.program.id}PRGLF">{$T.program.lastFinish}</td>
+					<td id="program{$T.program.id}PRGNR">{$T.program.nextRun}</td>
+					<td>
+						<button class='btn btn-mini btn-primary' onclick="display('/programs/{$T.program.id}/runThen/');">Run Then</button> 
+						<button class='btn btn-mini btn-info' onclick="display('/programs/{$T.program.id}/runElse/');">Run Else</button> 
+					</td>
+				{#/if}
+			</tr>
+			{#/for}
+		</table>
+	    <button class='btn btn-mini btn-primary' onclick="javascript:update('/programs/{$T.id}');return false;"><i class="icon-repeat"></i> Refresh</a></button>
+	{#else}
+		{#foreach $T.properties as property}
+			<br><b>{$T.property.label}</b> : <span id="program{$T.id}{$T.property.id}" class="{$T.property.pclass}">{$T.property.formatted}</span>
+		{#/for}
+		<br>
+		<button class='btn' onclick="display('/programs/{$T.id}/runIf/');">Run If</button> 
+		<button class='btn' onclick="display('/programs/{$T.id}/runThen/');">Run Then</button> 
+		<button class='btn' onclick="display('/programs/{$T.id}/runElse/');">Run Else</button> 
+		<button class='btn' onclick="display('/programs/{$T.id}/stop/');">Stop</button> 
+		<br>
+		<button class='btn' onclick="display('/programs/{$T.id}/enable/');">Enable</button> 
+		<button class='btn' onclick="display('/programs/{$T.id}/disable/');">Disable</button> 
+		<button class='btn' onclick="display('/programs/{$T.id}/enableRunAtStartup/');">Run At Startup</button> 
+		<button class='btn' onclick="display('/programs/{$T.id}/disableRunAtStartup/');">Do Not Run at Startup</button> 
+	{#/if}
+</textarea>
+<textarea id="node" style="display:none">
+	<div class="properties">
+	{#param name=id value=$T.id}
+		{#foreach $T.properties as property}
+		<br><b>{$T.property.label}</b> : <span id="program{$T.id}{$T.property.id}" class="{$T.property.pclass}">{$T.property.formatted}</span>
+		{#/for}
+	</div>
+	<div class="commands">
+	{#foreach $T.controls as control}
+		{#if controls[$T.control].actions[0]}
+			<select class="node{$T.id}{$T.control}" onchange="getCmd('{$T.address}', '{controls[$T.control].name}/' + this.value);">
+			<option value="null">{controls[$T.control].label}</option>
+			{#foreach controls[$T.control].actions as action}
+				<option value="{$T.action.name}">{$T.action.label}</option>
+			{#/for}
+			</select>
+		{#else}
+		<button class="btn node{$T.id}{$T.control}" onclick="getCmd('{$T.address}','{controls[$T.control].name}');">{controls[$T.control].label}</button> 
+		{#/if}
+	{#/for}
+		{#if $T.cat == 1}{* node is Dimmer *}
+		{*
+			<button class="btn btn-inverse" onmousedown="getCmd('{$T.address}','BMAN');" onmouseup="getCmd('{$T.address}','SMAN');">Dim</button> 
+			<button class="btn btn-inverse" onmousedown="getCmd('{$T.address}','BMAN/1');" onmouseup="getCmd('{$T.address}','SMAN');">Bright</button> 
+		*}
+	</div>
+	{#if $T.cat}{* node is not a Scene*}
+	    <button class='btn btn-mini btn-primary' onclick="javascript:update('/nodes/{$T.address}');return false;"><i class="icon-repeat"></i> Refresh</a></button>
+	{#/if}
+</textarea>
+<textarea id="climate" style="display:none">
+	<button class='btn btn-mini btn-primary' onclick="javascript:update('/climate/');return false;"><i class="icon-repeat"></i> Refresh</a></button>
+	<ul class="properties">
+	{#param name=id value=$T.id}
+		{#foreach $T.properties as property}
+		<li>
+			{$T.property.label}:
+			<span id="node{$T.id}{$T.property.id}" class="true">{$T.property.formatted}</span>
+		</li>
+		{#/for}
+	</ul>
+	<a href="{$T.rss}" class="WeatherBug">Courtesy of WeatherBug™</a>
+</textarea>
+<textarea id="eMeter" style="display:none">
+	<button class='btn btn-mini btn-primary' onclick="javascript:update('/emeter/status/');return false;"><i class="icon-repeat"></i> Refresh</a></button>
+	<ul>
+	{#param name=id value=$T.id}
+		{#foreach $T.properties as property}
+		<li>
+			{$T.property.label}:
+			<span id="node{$T.id}{$T.property.id}" class="true">{$T.property.formatted}</span>
+		</li>
+		{#/for}
+	</ul>
+</textarea>
+<textarea id="netConfig" style="display:none">
+	<table class="table table-bordered table-hover table-condensed">	
+	<tr><th>Name</th><th>Control</th></tr>
+	{#foreach $T as rule}
+		<tr>
+			<td>
+				{$T.rule.name}
+			</td>
+			<td>
+				{#if $T.rule.mac}{* mac means it is WOL else it is a resource *}
+					<button class='btn btn-mini btn-success' onclick="display('/networking/wol/{$T.rule.id}/');">Wake</button>					
+				{#else}
+					<button class='btn btn-mini btn-success' onclick="display('/networking/resources/{$T.rule.id}/');">Run</button>
+				{#/if}
+			</td>
+		</tr>			
+	{#/for}
+	</table>
+</textarea>
+</div>
+</body>
+</html>
