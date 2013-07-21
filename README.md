@@ -21,3 +21,14 @@ for additional details.
 **ISY AJAX - Bootstrap** is built off of modern technologies which is only available in modern browsers.  Currently, this project
 uses jQuery v2.0.3, Bootstrap v2.3.2, and Font-Awesome v3.2.1 and does NOT support Internet Explorer 9 or earlier.  If you use
 Internet Explorer, I have no sympathy for you; the world has moved on to better browsers, I suggest you do as well.
+
+## Contributing
+
+As I have a job, and suffer from "worksforme-itis", I do not have time to test every feature.  Additionally, I do not have every module.
+However, that's the beauty of open-source.  You can help!
+
+ * Fork the project
+ * Start a feature/bugfix branch
+ * Commit and push until you are happy with your contribution
+ * Send a pull request!
+
